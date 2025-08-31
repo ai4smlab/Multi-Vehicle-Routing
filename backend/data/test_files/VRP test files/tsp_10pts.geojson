@@ -1,0 +1,146 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.675,
+          24.713
+        ]
+      },
+      "properties": {
+        "id": "d0",
+        "type": "depot",
+        "demand": 0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6781,
+          24.7063
+        ]
+      },
+      "properties": {
+        "id": "c1",
+        "demand": 1
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6711,
+          24.7068
+        ]
+      },
+      "properties": {
+        "id": "c2",
+        "demand": 1
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6665,
+          24.7099
+        ]
+      },
+      "properties": {
+        "id": "c3",
+        "demand": 1
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.664,
+          24.717
+        ]
+      },
+      "properties": {
+        "id": "c4",
+        "demand": 1
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6687,
+          24.7212
+        ]
+      },
+      "properties": {
+        "id": "c5",
+        "demand": 1
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6769,
+          24.7235
+        ]
+      },
+      "properties": {
+        "id": "c6",
+        "demand": 1
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6844,
+          24.7211
+        ]
+      },
+      "properties": {
+        "id": "c7",
+        "demand": 1
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6897,
+          24.716
+        ]
+      },
+      "properties": {
+        "id": "c8",
+        "demand": 1
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6908,
+          24.7081
+        ]
+      },
+      "properties": {
+        "id": "c9",
+        "demand": 1
+      }
+    }
+  ]
+}

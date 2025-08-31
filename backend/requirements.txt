@@ -1,0 +1,17 @@
+fastapi==0.116.1
+httpx==0.28.1
+networkx==3.5
+ortools==9.14.6206
+osmnx==2.0.6
+osmpythontools==0.3.6
+pandas==2.3.2
+pydantic==2.11.7
+pyomo==6.9.3
+pytest==8.4.1
+python-dotenv==1.1.1
+pyvroom==1.14.0
+respx==0.22.0
+starlette==0.47.3
+uvicorn==0.35.0
+vroom==1.0.2
+vrplib==2.0.0
