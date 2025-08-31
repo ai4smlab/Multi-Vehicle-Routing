@@ -1,0 +1,108 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.675,
+          24.713
+        ]
+      },
+      "properties": {
+        "id": "d0",
+        "type": "depot",
+        "demand": 0,
+        "timeWindow": [
+          0,
+          14400
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6795,
+          24.7079
+        ]
+      },
+      "properties": {
+        "id": "p1",
+        "type": "pickup",
+        "pairId": "pair1",
+        "demand": 2,
+        "serviceTime": 180,
+        "timeWindow": [
+          600,
+          3600
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6672,
+          24.7118
+        ]
+      },
+      "properties": {
+        "id": "q1",
+        "type": "delivery",
+        "pairId": "pair1",
+        "demand": -2,
+        "serviceTime": 180,
+        "timeWindow": [
+          2400,
+          7200
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6849,
+          24.7165
+        ]
+      },
+      "properties": {
+        "id": "p2",
+        "type": "pickup",
+        "pairId": "pair2",
+        "demand": 1,
+        "serviceTime": 180,
+        "timeWindow": [
+          0,
+          5400
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6902,
+          24.7093
+        ]
+      },
+      "properties": {
+        "id": "q2",
+        "type": "delivery",
+        "pairId": "pair2",
+        "demand": -1,
+        "serviceTime": 180,
+        "timeWindow": [
+          1800,
+          9000
+        ]
+      }
+    }
+  ]
+}

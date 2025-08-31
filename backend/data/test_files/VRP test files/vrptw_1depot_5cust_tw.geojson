@@ -1,0 +1,119 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.675,
+          24.713
+        ]
+      },
+      "properties": {
+        "id": "d0",
+        "type": "depot",
+        "demand": 0,
+        "timeWindow": [
+          0,
+          14400
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6809,
+          24.7108
+        ]
+      },
+      "properties": {
+        "id": "c1",
+        "demand": 1,
+        "serviceTime": 300,
+        "timeWindow": [
+          600,
+          3600
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6712,
+          24.7099
+        ]
+      },
+      "properties": {
+        "id": "c2",
+        "demand": 1,
+        "serviceTime": 240,
+        "timeWindow": [
+          1200,
+          5400
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6862,
+          24.7171
+        ]
+      },
+      "properties": {
+        "id": "c3",
+        "demand": 1,
+        "serviceTime": 180,
+        "timeWindow": [
+          0,
+          7200
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.6697,
+          24.7039
+        ]
+      },
+      "properties": {
+        "id": "c4",
+        "demand": 1,
+        "serviceTime": 300,
+        "timeWindow": [
+          3000,
+          9000
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          46.676,
+          24.7205
+        ]
+      },
+      "properties": {
+        "id": "c5",
+        "demand": 1,
+        "serviceTime": 180,
+        "timeWindow": [
+          1000,
+          4000
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.095642500417538,
+          26.789040106956463
+        ]
+      },
+      "properties": {
+        "id": 1753984851942,
+        "type": "Depot",
+        "demand": 1,
+        "capacity": 5,
+        "serviceTime": 10,
+        "timeWindow": [
+          8,
+          17
+        ],
+        "pairId": null
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          16.387632092847465,
+          25.853296996697672
+        ]
+      },
+      "properties": {
+        "id": 1753984853031,
+        "type": "Pickup",
+        "demand": 1,
+        "capacity": 5,
+        "serviceTime": 10,
+        "timeWindow": [
+          8,
+          17
+        ],
+        "pairId": "pick-1"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          19.86762365427725,
+          23.002084005800878
+        ]
+      },
+      "properties": {
+        "id": 1753984854162,
+        "type": "Delivery",
+        "demand": 1,
+        "capacity": 5,
+        "serviceTime": 10,
+        "timeWindow": [
+          8,
+          17
+        ],
+        "pairId": "pick-1"
+      }
+    }
+  ]
+}
