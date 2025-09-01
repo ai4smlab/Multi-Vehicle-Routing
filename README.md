@@ -1,3 +1,9 @@
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/ai4smlab/Multi-Vehicle-Routing/blob/main/LICENSE)
+![Last Commit](https://img.shields.io/github/last-commit/ai4smlab/Multi-Vehicle-Routing)
+![Repo Size](https://img.shields.io/github/repo-size/ai4smlab/Multi-Vehicle-Routing)
+![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
+![GitHub Stars](https://img.shields.io/github/stars/ai4smlab/Multi-Vehicle-Routing?style=social)
+
 # Multi-Vehicle-Routing
 A full-stack playground for **Vehicle Routing Problems (VRP)**.
 It includes a **Next.js** frontend for map-based experimentation and a **FastAPI** backend with modular distance-matrix adapters and multiple solvers (**OR-Tools**, **Pyomo**, **VROOM**) plus benchmark loaders and emissions enrichment.
