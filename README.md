@@ -174,12 +174,6 @@ See **[backend/doc/contributing.md](backend/doc/contributing.md)** for style and
 
 ---
 
-## License
-
-MIT
-
----
-
 ## 🙏 Acknowledgment  
 
-We acknowledge the support of the **Interdisciplinary Research Center for Smart Mobility and Logistics at KFUPM** under Grant SmartDispatch: AI-driven Optimization for Eco-Efficient Last-Mile Delivery.  
+We acknowledge the support of the **Interdisciplinary Research Center for Smart Mobility and Logistics at KFUPM** under Grant **SmartDispatch: AI-driven Optimization for Eco-Efficient Last-Mile Delivery**.  
