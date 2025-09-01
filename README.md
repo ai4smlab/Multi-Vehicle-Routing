@@ -180,8 +180,6 @@ MIT
 
 ---
 
-## Acknowledgements
+## 🙏 Acknowledgment  
 
-* Google OR-Tools, Pyomo, CBC/GLPK, VROOM team
-* OpenRouteService & Mapbox for routing/matrix APIs
-* deck.gl / MapLibre / Mapbox GL communities
+We acknowledge the support of the **Interdisciplinary Research Center for Smart Mobility and Logistics at KFUPM** under Grant SmartDispatch: AI-driven Optimization for Eco-Efficient Last-Mile Delivery.  
