@@ -196,6 +196,7 @@ BibTeX:
   year    = {2025},
   note = {\url{https://github.com/ai4smlab/Multi-Vehicle-Routing}}
 }
+```
 
 ---
 
