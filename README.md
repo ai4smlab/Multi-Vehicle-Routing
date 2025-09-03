@@ -8,7 +8,7 @@
 A full-stack playground for **Vehicle Routing Problems (VRP)**.
 It includes a **Next.js** frontend for map-based experimentation and a **FastAPI** backend with modular distance-matrix adapters and multiple solvers (**OR-Tools**, **Pyomo**, **VROOM**) plus benchmark loaders and emissions enrichment.
 
-<img src="VRP_engine.png" alt="Multi-Vehicle-Routing Engine" width="50%"></a>
+<img src="VRP_engine.png" alt="Multi-Vehicle-Routing Engine" width="70%"></a>
 
 ---
 
