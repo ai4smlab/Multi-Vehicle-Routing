@@ -4,7 +4,8 @@
 ![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
 ![GitHub Stars](https://img.shields.io/github/stars/ai4smlab/Multi-Vehicle-Routing?style=social)
 
-# Multi-Vehicle-Routing
+# Multi-Vehicle-Routing Engine
+
 A full-stack playground for **Vehicle Routing Problems (VRP)**.
 It includes a **Next.js** frontend for map-based experimentation and a **FastAPI** backend with modular distance-matrix adapters and multiple solvers (**OR-Tools**, **Pyomo**, **VROOM**) plus benchmark loaders and emissions enrichment.
 
@@ -179,6 +180,21 @@ See **Issues** for the living plan.
 ## Contributing
 
 See **[backend/doc/contributing.md](backend/doc/contributing.md)** for style and PR guidelines.
+
+---
+
+## 🔖 Citation
+
+To cite this engine in publications, please use:
+
+BibTeX:
+```
+@article{vrp_engine_v1.0,
+  title   = {Multi-Vehicle Routing Engine},
+  author  = {Ahmed Khalil Alosif and Alaa Khamis},
+  organization = {AI for Smart Mobility Lab, IRC for Smart Mobility and Logistics at KFUPM},
+  year    = {2025}
+}
 
 ---
 
