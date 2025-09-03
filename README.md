@@ -193,7 +193,8 @@ BibTeX:
   title   = {Multi-Vehicle Routing Engine},
   author  = {Ahmed Khalil Alosif and Alaa Khamis},
   organization = {AI for Smart Mobility Lab, IRC for Smart Mobility and Logistics at KFUPM},
-  year    = {2025}
+  year    = {2025},
+  note = {\url{https://github.com/ai4smlab/Multi-Vehicle-Routing}}
 }
 
 ---
