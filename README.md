@@ -18,6 +18,7 @@ It includes a **Next.js** frontend for map-based experimentation and a **FastAPI
 * ✨ **Multiple solvers**: OR-Tools (TSP/CVRP/VRPTW/PDPTW), Pyomo (CVRPTW via CBC), VROOM (coord/index; NN fallback), and a Mapbox Optimizer proxy.
 * 🧭 **Distance-matrix adapters**: `haversine` (offline), `openrouteservice` (online; optional key), and a **local `euclidean` (planar XY)** for benchmark/planar datasets.
 * 🗺️ **Frontend**: Waypoint editing, fleet configuration, benchmarking, ETA overlays, traffic gradient, animated trips, clustering, lasso/BBox selection.
+* 🤖 **AI Agent**: Conversational waypoint modification using natural language with Ollama LLM integration.
 * 🧩 **Datasets**: Solomon TXT, VRP-Set-XML100 (VRPLIB), CSV/GeoJSON helpers.
 * 🧪 **Testing**: `pytest` for backend; `vitest`/`playwright` for frontend.
 * 🧱 **Modular**: Clean registries for adapters & solvers; easy to extend.
@@ -71,7 +72,7 @@ export ORS_API_KEY="your-ors-key"
 uvicorn main:app --reload            # http://127.0.0.1:8000/docs
 ```
 
-### 2) Frontend (Next.js)
+### 2) Frontend (Next.js) - Optional
 
 ```bash
 cd frontend
@@ -85,6 +86,22 @@ npm run dev                          # http://127.0.0.1:3000
 ```
 
 > The frontend reads `NEXT_PUBLIC_API_BASE` (default `/` if proxied).
+
+### 3) Streamlit App (VRP UI + AI Agent)
+
+```bash
+cd streamlit-app
+pip install -r requirements.txt
+
+# For AI Agent functionality (optional):
+pip install strands-agents strands-agents-tools
+# Install and start Ollama:
+# brew install ollama && ollama serve && ollama pull llama3.1:8b-instruct-q6_K
+
+streamlit run app.py         # http://127.0.0.1:8501
+```
+
+> The Streamlit app includes both the VRP solver interface and the AI Agent for conversational waypoint modifications.
 
 ---
 

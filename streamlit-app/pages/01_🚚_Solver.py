@@ -1,5 +1,7 @@
 import streamlit as st
 import json
+import copy
+import os
 from components.api_client import get_api_client
 from utils.data_processing import (
     validate_waypoints_json, 
@@ -204,7 +206,25 @@ with col2:
                 if result.get('status') == 'success':
                     st.success("✅ Routes optimized successfully!")
                     
-                    # Store result in session state
+                    # Store enhanced session data for AI agent
+                    st.session_state.vrp_data = {
+                        "waypoints": waypoints_data,
+                        "original_waypoints": copy.deepcopy(waypoints_data),
+                        "fleet": fleet_data,
+                        "solver_config": {
+                            "solver": solver,
+                            "adapter": adapter,
+                            "weights": {"distance": weight_distance, "time": weight_time},
+                            "time_limit": time_limit,
+                            "allow_drop": allow_drop
+                        },
+                        "original_result": result,
+                        "current_result": result,
+                        "modification_history": [],
+                        "session_id": os.urandom(16).hex()
+                    }
+                    
+                    # Store legacy session state for compatibility
                     st.session_state.solver_result = result
                     st.session_state.waypoints_data = waypoints_data
                     
@@ -217,8 +237,15 @@ with col2:
                     if not routes_df.empty:
                         st.dataframe(routes_df, use_container_width=True)
                     
-                    st.write("Debug - Result structure:", result)  # Debug line
-
+                    # Add AI Agent launch section
+                    st.subheader("Next Steps")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("🤖 Launch AI Agent", type="secondary", use_container_width=True):
+                            st.switch_page("pages/02_🤖_AI_Agent.py")
+                    with col2:
+                        if st.button("🔄 Run Another Optimization", use_container_width=True):
+                            st.rerun()
                     
                 else:
                     st.error(f"❌ Optimization failed: {result.get('message', 'Unknown error')}")

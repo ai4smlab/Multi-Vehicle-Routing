@@ -2,7 +2,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import folium
-from streamlit_folium import st_folium
+#from streamlit_folium import st_folium
 from typing import List, Dict, Any
 
 def create_comparison_chart(results: Dict[str, Dict]) -> go.Figure:
