@@ -1,8 +1,9 @@
+import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import folium
-#from streamlit_folium import st_folium
+from streamlit_folium import st_folium
 from typing import List, Dict, Any
 
 def create_comparison_chart(results: Dict[str, Dict]) -> go.Figure:
@@ -103,25 +104,43 @@ def create_route_map(waypoints: List[Dict], routes: List[Dict] = None) -> folium
 
 def display_metrics(result: Dict[str, Any]):
     """Display key metrics from solver results"""
-    if 'routes' not in result:
+    if not result:
+        st.warning("No results to display")
         return
     
-    routes = result['routes']
+    # Handle nested data structure from API response
+    if 'data' in result and isinstance(result['data'], dict):
+        data = result['data']
+    else:
+        data = result
+    
+    # Check if routes exist
+    if 'routes' not in data:
+        st.warning(f"No 'routes' key found. Available keys: {list(data.keys())}")
+        return
+    
+    routes = data['routes']
+    if not routes:
+        st.warning("No routes in result")
+        return
+    
+    # Calculate metrics
     total_distance = sum(route.get('total_distance', 0) for route in routes)
     total_duration = sum(route.get('total_duration', 0) for route in routes if route.get('total_duration'))
     num_vehicles = len(routes)
     
+    # Display metrics in three columns
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Total Distance", f"{total_distance:.2f}")
+        st.metric("Total Distance (km)", f"{total_distance:.2f}")
     
     with col2:
         st.metric("Vehicles Used", num_vehicles)
     
     with col3:
-        if total_duration > 0:
-            st.metric("Total Duration", f"{total_duration} sec")
+        if total_duration and total_duration > 0:
+            st.metric("Total Duration (s)", f"{total_duration}")
         else:
             st.metric("Total Duration", "N/A")
 
