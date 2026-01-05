@@ -228,27 +228,32 @@ with col2:
                     st.session_state.solver_result = result
                     st.session_state.waypoints_data = waypoints_data
                     
-                    # Display metrics
-                    display_metrics(result)
-                    
-                    # Display routes table
-                    st.subheader("Route Details")
-                    routes_df = format_solution_results(result)
-                    if not routes_df.empty:
-                        st.dataframe(routes_df, use_container_width=True)
-                    
-                    # Add AI Agent launch section
-                    st.subheader("Next Steps")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button("🤖 Launch AI Agent", type="secondary", use_container_width=True):
-                            st.switch_page("pages/02_🤖_AI_Agent.py")
-                    with col2:
-                        if st.button("🔄 Run Another Optimization", use_container_width=True):
-                            st.rerun()
-                    
+                        
                 else:
                     st.error(f"❌ Optimization failed: {result.get('message', 'Unknown error')}")
+
+
+    if 'solver_result' in st.session_state:
+                        result = st.session_state.solver_result
+                        waypoints_data = st.session_state.waypoints_data
+                        # Display metrics
+                        display_metrics(result)
+                        
+                        # Display routes table
+                        st.subheader("Route Details")
+                        routes_df = format_solution_results(result)
+                        if not routes_df.empty:
+                            st.dataframe(routes_df, use_container_width=True)
+                        
+                        # Add AI Agent launch section
+                        st.subheader("Next Steps")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("🤖 Launch AI Agent", type="secondary", use_container_width=True):
+                                st.switch_page("pages/02_🤖_AI_Agent.py")
+                        with col2:
+                            if st.button("🔄 Run Another Optimization", use_container_width=True):
+                                st.rerun()
 
 # Display map if we have results
 if 'solver_result' in st.session_state and 'waypoints_data' in st.session_state:

@@ -60,23 +60,20 @@ if agent is None:
 if "agent_session_id" not in st.session_state:
     st.session_state.agent_session_id = os.urandom(16).hex()
     st.session_state.agent_messages = []
+    st.session_state.processing_message = None
 
 # Display chat history
 for message in st.session_state.agent_messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Chat input
-if prompt := st.chat_input("Ask me to modify waypoints, e.g., 'Move customer_5 to latitude 40.7128, longitude -74.0060'"):
-    st.session_state.agent_messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
+# Check if we're waiting for a response
+if st.session_state.processing_message is not None:
     with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        
         with st.spinner("Agent is processing your request..."):
             try:
+                prompt = st.session_state.processing_message
+                
                 # Call agent
                 result = agent(prompt, session_id=st.session_state.agent_session_id)
                 
@@ -88,14 +85,24 @@ if prompt := st.chat_input("Ask me to modify waypoints, e.g., 'Move customer_5 t
                         full_response = str(result.content)
                 else:
                     full_response = str(result)
-                    
-                message_placeholder.markdown(full_response)
+                
+                st.session_state.agent_messages.append({"role": "assistant", "content": full_response})
+                st.session_state.processing_message = None
+                st.rerun()
                 
             except Exception as e:
                 full_response = f"An error occurred: {e}"
                 st.error(full_response)
-                
-        st.session_state.agent_messages.append({"role": "assistant", "content": full_response})
+                st.session_state.agent_messages.append({"role": "assistant", "content": full_response})
+                st.session_state.processing_message = None
+                st.rerun()
+
+# Chat input (only show if not currently processing)
+if st.session_state.processing_message is None:
+    if prompt := st.chat_input("Ask me to modify waypoints, e.g., 'Move customer_5 to latitude 40.7128, longitude -74.0060'"):
+        st.session_state.agent_messages.append({"role": "user", "content": prompt})
+        st.session_state.processing_message = prompt
+        st.rerun()
 
 # Quick action buttons
 st.subheader("Quick Actions")
@@ -104,14 +111,17 @@ col1, col2, col3 = st.columns(3)
 with col1:
     if st.button("📊 Show Route Summary", use_container_width=True):
         st.session_state.agent_messages.append({"role": "user", "content": "Show me the current route summary"})
+        st.session_state.processing_message = "Show me the current route summary"
         st.rerun()
 
 with col2:
     if st.button("📈 Compare Solutions", use_container_width=True):
         st.session_state.agent_messages.append({"role": "user", "content": "Compare the original and current solutions"})
+        st.session_state.processing_message = "Compare the original and current solutions"
         st.rerun()
 
 with col3:
     if st.button("🔄 Reset to Original", use_container_width=True):
         st.session_state.agent_messages.append({"role": "user", "content": "Reset all waypoints to original positions"})
+        st.session_state.processing_message = "Reset all waypoints to original positions"
         st.rerun()
