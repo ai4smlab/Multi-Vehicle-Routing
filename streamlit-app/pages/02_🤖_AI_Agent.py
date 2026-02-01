@@ -1,11 +1,10 @@
 import streamlit as st
 import os
 import sys
-import speech_recognition as sr  # ⭐ NEW - Line 4
-from io import BytesIO  # ⭐ NEW - Line 5
+import speech_recognition as sr
+from io import BytesIO
 
 # Add the parent directory to the path to import agent
-# sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from agent.vrp_agent import get_vrp_agent
 
@@ -63,6 +62,7 @@ if "agent_session_id" not in st.session_state:
     st.session_state.agent_session_id = os.urandom(16).hex()
     st.session_state.agent_messages = []
     st.session_state.processing_message = None
+    st.session_state.voice_transcript = None  # ⭐ Store voice transcript for review
 
 # Display chat history
 for message in st.session_state.agent_messages:
@@ -99,41 +99,62 @@ if st.session_state.processing_message is not None:
                 st.session_state.processing_message = None
                 st.rerun()
 
-""" # Chat input (only show if not currently processing)
-if st.session_state.processing_message is None:
-    if prompt := st.chat_input("Ask me to modify waypoints, e.g., 'Move customer_5 to latitude 40.7128, longitude -74.0060'"):
-        st.session_state.agent_messages.append({"role": "user", "content": prompt})
-        st.session_state.processing_message = prompt
-        st.rerun() """
+# ⭐ CHANGED - Display editable voice transcript if available
+if st.session_state.voice_transcript is not None:
+    st.info("🎤 **Voice Transcript - Edit Below and Send**", icon="ℹ️")
+    edited_transcript = st.text_area(
+        "Edit your voice message:",
+        value=st.session_state.voice_transcript,
+        height=100,
+        key="edited_voice_input"
+    )
+    
+    col_a, col_b = st.columns(2)
+    
+    with col_a:
+        if st.button("✅ Send Message", use_container_width=True, type="primary"):
+            if edited_transcript.strip():
+                st.session_state.agent_messages.append({"role": "user", "content": edited_transcript})
+                st.session_state.processing_message = edited_transcript
+                st.session_state.voice_transcript = None
+                st.rerun()
+    
+    with col_b:
+        if st.button("🗑️ Discard", use_container_width=True):
+            st.session_state.voice_transcript = None
+            st.rerun()
 
-# ⭐ CHANGED - Lines 104-137: Chat input with voice option (only show if not currently processing)
-if st.session_state.processing_message is None:
-    col1, col2 = st.columns([3, 1])  # ⭐ NEW - 2-column layout
+# Chat input with voice option
+if st.session_state.processing_message is None and st.session_state.voice_transcript is None:
+    col1, col2 = st.columns([3, 1])  # 2-column layout
     
     with col1:
         prompt = st.chat_input("Ask me to modify waypoints, e.g., 'Move customer_5 to latitude 40.7128, longitude -74.0060'")
     
-    with col2:  # ⭐ NEW - Voice input column
-        audio_data = st.audio_input("🎤 Record voice input")  # ⭐ NEW
+    with col2:  # Voice input column
+        audio_data = st.audio_input("🎤 Record voice input")
         
-        if audio_data is not None:  # ⭐ NEW - Process audio if recorded
+        if audio_data is not None:
             try:
                 # Convert audio bytes to text
-                recognizer = sr.Recognizer()  # ⭐ NEW
-                audio_bytes = BytesIO(audio_data.getvalue())  # ⭐ NEW
+                recognizer = sr.Recognizer()
+                audio_bytes = BytesIO(audio_data.getvalue())
                 
-                with sr.AudioFile(audio_bytes) as source:  # ⭐ NEW
-                    audio = recognizer.record(source)  # ⭐ NEW
-                    prompt = recognizer.recognize_google(audio)  # ⭐ NEW
-                    st.info(f"✅ Recognized: *{prompt}*")  # ⭐ NEW
-            except sr.RequestError:  # ⭐ NEW
-                st.error("❌ Speech recognition service unavailable")  # ⭐ NEW
-            except sr.UnknownValueValue:  # ⭐ NEW
-                st.warning("⚠️ Could not understand audio - please try again")  # ⭐ NEW
-            except Exception as e:  # ⭐ NEW
-                st.error(f"❌ Error processing audio: {e}")  # ⭐ NEW
+                with sr.AudioFile(audio_bytes) as source:
+                    audio = recognizer.record(source)
+                    voice_text = recognizer.recognize_google(audio)
+                    st.session_state.voice_transcript = voice_text  # ⭐ Store transcript
+                    st.rerun()  # ⭐ Rerun to show editable textarea
+                    
+            except sr.RequestError:
+                st.error("❌ Speech recognition service unavailable")
+            except sr.UnknownValueError:
+                st.warning("⚠️ Could not understand audio - please try again")
+            except Exception as e:
+                st.error(f"❌ Error processing audio: {e}")
     
     if prompt:
+        # Text input from chat_input
         st.session_state.agent_messages.append({"role": "user", "content": prompt})
         st.session_state.processing_message = prompt
         st.rerun()
