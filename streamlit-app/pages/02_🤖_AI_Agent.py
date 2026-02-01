@@ -49,7 +49,7 @@ if vrp_data.get("modification_history"):
                 st.error(f"↑ {abs(record['improvement']['distance_change']):.1f}km added")
 
 # Warning about requirements
-st.warning("⚠️ Requires Ollama (llama3.1:8b-instruct-q6_K) running on localhost:11434", icon="⚠️")
+st.warning("Requires Ollama (llama3.1:8b-instruct-q6_K) running on localhost:11434", icon="⚠️")
 
 # Initialize agent
 agent = get_vrp_agent()
