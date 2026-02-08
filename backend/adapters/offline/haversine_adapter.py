@@ -35,4 +35,9 @@ class HaversineAdapter(DistanceMatrixAdapter):
                 row.append(_haversine_km(o.lat, o.lon, d.lat, d.lon))
             distances.append(row)
 
-        return MatrixResult(distances=distances, durations=None)
+        # Calculate durations assuming 40 km/h average speed
+        durations: List[List[int]] = []
+        for row in distances:
+            durations.append([int((dist_km / 40.0) * 3600) for dist_km in row])
+
+        return MatrixResult(distances=distances, durations=durations)

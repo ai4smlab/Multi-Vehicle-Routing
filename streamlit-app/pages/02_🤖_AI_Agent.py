@@ -8,6 +8,41 @@ from io import BytesIO
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from agent.vrp_agent import get_vrp_agent
 
+# Debug: Check session state
+st.write("DEBUG - Session state keys:", list(st.session_state.keys()))
+if 'vrp_data' in st.session_state:
+    st.write("DEBUG - vrp_data exists with keys:", list(st.session_state.vrp_data.keys()))
+
+# Debug: Check session state
+# Debug: Check session state
+st.write("DEBUG - Session state keys:", list(st.session_state.keys()))
+if 'vrp_data' in st.session_state:
+    st.write("DEBUG - vrp_data contents:")
+    for key, value in st.session_state.vrp_data.items():
+        if key in ['waypoints', 'original_waypoints']:
+            st.write(f"  {key}: {len(value)} items")
+            st.json(value[:2])  # Show first 2 waypoints
+        elif key == 'fleet':
+            st.write(f"  {key}: {len(value)} vehicles")
+            st.json(value)
+        elif key in ['original_result', 'current_result']:
+            st.write(f"  {key}:")
+            st.write(f"    Full structure:")
+            st.json(value)  # Show complete result structure
+        elif key == 'modification_history':
+            st.write(f"  {key}: {len(value)} modifications")
+        elif key == 'session_id':
+            st.write(f"  {key}: {value}")
+        else:
+            st.write(f"  {key}:")
+            st.json(value)
+
+
+
+
+
+
+
 st.set_page_config(page_title="VRP AI Agent", page_icon="🤖", layout="wide")
 st.title("🤖 VRP AI Agent")
 
@@ -49,7 +84,7 @@ if vrp_data.get("modification_history"):
                 st.error(f"↑ {abs(record['improvement']['distance_change']):.1f}km added")
 
 # Warning about requirements
-st.warning("Requires Ollama (llama3.1:8b-instruct-q6_K) running on localhost:11434", icon="⚠️")
+st.warning("Requires Ollama (qwen3) running on localhost:11434", icon="⚠️")
 
 # Initialize agent
 agent = get_vrp_agent()
@@ -76,8 +111,22 @@ if st.session_state.processing_message is not None:
             try:
                 prompt = st.session_state.processing_message
                 
+                # Pass VRP data as context since tools can't access st.session_state
+                context = {
+                    "vrp_data_available": True,
+                    "vrp_summary": {
+                        "waypoints": len(st.session_state.vrp_data["waypoints"]),
+                        "vehicles": len(st.session_state.vrp_data["fleet"]),
+                        "solver": st.session_state.vrp_data["solver_config"]["solver"]
+                    }
+                }
+                
+                # Inject context into prompt
+                enhanced_prompt = f"{prompt}\n\nContext: VRP session is active with {context['vrp_summary']['waypoints']} waypoints and {context['vrp_summary']['vehicles']} vehicles."
+                
                 # Call agent
-                result = agent(prompt, session_id=st.session_state.agent_session_id)
+                result = agent(enhanced_prompt, session_id=st.session_state.agent_session_id)
+
                 
                 # Handle different response types
                 if hasattr(result, 'content'):

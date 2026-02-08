@@ -199,7 +199,6 @@ with col2:
                 }
 
 
-
                 # Call solver
                 result = api_client.solve_vrp(payload)
                 
