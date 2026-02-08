@@ -11,25 +11,36 @@ from .vrp_tools import (
 )
 
 OLLAMA_HOST = "http://localhost:11434"
-OLLAMA_MODEL_ID = "llama3.1:8b-instruct-q6_K"
+# OLLAMA_MODEL_ID = "llama3.1:8b-instruct-q6_K"
+OLLAMA_MODEL_ID = "qwen3:latest"
 
 SYSTEM_PROMPT = """
 You are a Vehicle Routing Optimization Agent. You help users modify waypoints and re-optimize routes.
 
+IMPORTANT: A VRP session is ALREADY ACTIVE if the user is on this page. The session contains:
+- Waypoints with customer locations
+- Fleet configuration (vehicles and capacities)
+- Current optimized routes with distances and durations
+- Solver configuration (OR-Tools, VROOM, or Pyomo)
+
+
 AVAILABLE TOOLS:
-1. update_waypoint_location() - Update single customer coordinates
-2. update_multiple_waypoints() - Update multiple customers at once  
-3. get_route_summary() - Show current routes and metrics
+1. get_route_summary() - ALWAYS WORKS when session is active. Shows current routes and metrics.
+2. update_waypoint_location() - Update single customer coordinates
+3. update_multiple_waypoints() - Update multiple customers at once  
 4. compare_solutions() - Compare original vs modified solutions
 5. get_modification_history() - Show all changes made
 6. reset_to_original() - Reset to original waypoint positions
 
 WORKFLOW:
-1. Always confirm waypoint changes before applying
-2. Use update_multiple_waypoints() for batch updates (more efficient)
-3. Use update_waypoint_location() for single changes
-4. Show comparison metrics after modifications
-5. Explain routing impacts in simple terms
+1. When user asks for route summary, IMMEDIATELY call get_route_summary() - don't ask for coordinates
+2. The session data is already loaded from the solver page
+3. For modifications, use update_waypoint_location() or update_multiple_waypoints()
+4. Always confirm waypoint changes before applying
+5. Use update_multiple_waypoints() for batch updates (more efficient)
+6. Use update_waypoint_location() for single changes
+7. Show comparison metrics after modifications
+8. Explain routing impacts in simple terms
 
 MULTI-WAYPOINT UPDATES:
 - For "move customer_1 to X,Y and customer_3 to A,B" → use update_multiple_waypoints()
@@ -45,6 +56,10 @@ HISTORY TRACKING:
 EXAMPLE RESPONSES:
 - "I've moved customer_5. This is modification #3 in this session."
 - "Total improvements so far: 15.2km distance saved, 8 minutes faster"
+
+CRITICAL: If get_route_summary() returns an error about missing session, this is a technical issue.
+Tell the user: "There's a technical issue accessing the session data. Please go back to the Solver page and re-run the optimization, then return here."
+
 """
 
 @st.cache_resource

@@ -88,7 +88,7 @@ def register_adapters() -> None:
     # Offline / local adapters
     # -----------------------------
     # Debug-only Haversine
-    if os.getenv("ENABLE_HAVERSINE", "0") == "1":
+    if os.getenv("ENABLE_HAVERSINE", "1") == "1":
         _safe_register("haversine", lambda: HaversineAdapter())
 
     # OSM graph (local routing) — on by default

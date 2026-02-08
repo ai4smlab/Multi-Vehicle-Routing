@@ -104,6 +104,36 @@ def update_multiple_waypoints(updates: str) -> str:
     
     return format_batch_update_response(old_result, new_result, changes)
 
+
+
+# @tool
+# def get_route_summary() -> str:
+#     """Gets current optimization results and route details.
+    
+#     Returns: Current routes, metrics, and waypoint information
+#     """
+    
+#     if 'vrp_data' not in st.session_state:
+#         return "ERROR: No VRP session found. Please run optimization first."
+    
+#     current_result = st.session_state.vrp_data["current_result"]
+#     waypoints = st.session_state.vrp_data["waypoints"]
+    
+#     summary = {
+#         "session_info": {
+#             "total_waypoints": len(waypoints),
+#             "total_vehicles": len(st.session_state.vrp_data["fleet"]),
+#             "solver": st.session_state.vrp_data["solver_config"]["solver"]
+#         },
+#         "current_metrics": extract_metrics(current_result),
+#         "routes": current_result.get("routes", []),
+#         "waypoints": waypoints
+#     }
+    
+#     return json.dumps(summary, indent=2)
+
+
+
 @tool
 def get_route_summary() -> str:
     """Gets current optimization results and route details.
@@ -111,8 +141,12 @@ def get_route_summary() -> str:
     Returns: Current routes, metrics, and waypoint information
     """
     
+    # Debug: Check what's in session state from tool perspective
+    import streamlit as st
+    session_keys = list(st.session_state.keys()) if hasattr(st, 'session_state') else []
+    
     if 'vrp_data' not in st.session_state:
-        return "ERROR: No VRP session found. Please run optimization first."
+        return f"ERROR: No VRP session found. Session keys available: {session_keys}"
     
     current_result = st.session_state.vrp_data["current_result"]
     waypoints = st.session_state.vrp_data["waypoints"]
@@ -124,11 +158,13 @@ def get_route_summary() -> str:
             "solver": st.session_state.vrp_data["solver_config"]["solver"]
         },
         "current_metrics": extract_metrics(current_result),
-        "routes": current_result.get("routes", []),
+        "routes": current_result.get("routes", []) if "data" not in current_result else current_result["data"].get("routes", []),
         "waypoints": waypoints
     }
     
     return json.dumps(summary, indent=2)
+
+
 
 @tool
 def compare_solutions() -> str:
@@ -282,6 +318,7 @@ def reoptimize_routes():
     
     return result
 
+
 def extract_metrics(result):
     """Extract key metrics from solver result"""
     return {
@@ -289,7 +326,29 @@ def extract_metrics(result):
         "total_time": result.get("total_time", 0),
         "total_cost": result.get("total_cost", 0),
         "num_routes": len(result.get("routes", []))
-    }
+    } 
+
+
+# def extract_metrics(result):
+#     """Extract key metrics from solver result"""
+#     # Handle nested data structure
+#     if "data" in result:
+#         data = result["data"]
+#         routes = data.get("routes", [])
+#     else:
+#         routes = result.get("routes", [])
+    
+#     # Calculate metrics from routes
+#     total_distance = sum(route.get("total_distance", 0) for route in routes)
+#     total_time = sum(route.get("total_duration", 0) for route in routes)
+    
+#     return {
+#         "total_distance": total_distance,
+#         "total_time": total_time,
+#         "total_cost": result.get("total_cost", 0),
+#         "num_routes": len(routes)
+#     }
+
 
 def calculate_improvement(old_result, new_result):
     """Calculate improvement metrics"""
