@@ -1,12 +1,23 @@
+from datetime import datetime
 import streamlit as st
 import os
 import sys
 import speech_recognition as sr
 from io import BytesIO
 
+
 # Add the parent directory to the path to import agent
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
 from agent.vrp_agent import get_vrp_agent
+from agent.vrp_tools import (
+    update_waypoint_location,
+    update_multiple_waypoints,
+    get_route_summary,
+    compare_solutions,
+    get_modification_history,
+    reset_to_original
+)
 
 # Debug: Check session state
 st.write("DEBUG - Session state keys:", list(st.session_state.keys()))
@@ -109,40 +120,68 @@ if st.session_state.processing_message is not None:
     with st.chat_message("assistant"):
         with st.spinner("Agent is processing your request..."):
             try:
+                from langchain_core.messages import HumanMessage, SystemMessage
+                from langchain_ollama import ChatOllama
+                
                 prompt = st.session_state.processing_message
                 
-                # Pass VRP data as context since tools can't access st.session_state
-                context = {
-                    "vrp_data_available": True,
-                    "vrp_summary": {
-                        "waypoints": len(st.session_state.vrp_data["waypoints"]),
-                        "vehicles": len(st.session_state.vrp_data["fleet"]),
-                        "solver": st.session_state.vrp_data["solver_config"]["solver"]
-                    }
-                }
+                # Call agent with tool binding
+                response = agent.invoke([HumanMessage(content=prompt)])
                 
-                # Inject context into prompt
-                enhanced_prompt = f"{prompt}\n\nContext: VRP session is active with {context['vrp_summary']['waypoints']} waypoints and {context['vrp_summary']['vehicles']} vehicles."
-                
-                # Call agent
-                result = agent(enhanced_prompt, session_id=st.session_state.agent_session_id)
+                # Check if tools were called
+                if hasattr(response, 'tool_calls') and response.tool_calls:
+                    # Execute tool calls
+                    tool_results = []
+                    
+                    for tool_call in response.tool_calls:
+                        tool_name = tool_call['name']
+                        tool_args = tool_call['args']
+                        
+                        # Find and execute the tool
+                        tools_map = {
+                            'update_waypoint_location': update_waypoint_location,
+                            'update_multiple_waypoints': update_multiple_waypoints,
+                            'get_route_summary': get_route_summary,
+                            'compare_solutions': compare_solutions,
+                            'get_modification_history': get_modification_history,
+                            'reset_to_original': reset_to_original
+                        }
+                        
+                        if tool_name in tools_map:
+                            result = tools_map[tool_name].invoke(tool_args)
+                            tool_results.append(f"Tool: {tool_name}\nResult: {result}")
+                    
+                    # Now ask LLM to interpret the results in human-friendly format
+                    llm = ChatOllama(base_url="http://localhost:11434", model="qwen3:latest", temperature=0.3)
+                    
+                    interpretation_prompt = f"""You are a helpful Vehicle Routing Problem (VRP) assistant. 
+                    
+The user asked: "{prompt}"
 
-                
-                # Handle different response types
-                if hasattr(result, 'content'):
-                    if hasattr(result.content, 'text'):
-                        full_response = result.content.text
-                    else:
-                        full_response = str(result.content)
+The system executed tools and returned this data:
+{chr(10).join(tool_results)}
+
+Please provide a clear, conversational summary of this information. Focus on:
+- Number of waypoints and vehicles
+- Route sequences (e.g., depot → customer_1 → customer_2 → depot)
+- Total distance and duration in readable format
+- Any important details about the solution
+
+Be concise and friendly. Use natural language, not JSON."""
+                    
+                    narrative_response = llm.invoke([HumanMessage(content=interpretation_prompt)])
+                    full_response = narrative_response.content
                 else:
-                    full_response = str(result)
+                    # No tools called, use direct response
+                    full_response = response.content if hasattr(response, 'content') else str(response)
                 
                 st.session_state.agent_messages.append({"role": "assistant", "content": full_response})
                 st.session_state.processing_message = None
                 st.rerun()
                 
             except Exception as e:
-                full_response = f"An error occurred: {e}"
+                import traceback
+                full_response = f"An error occurred: {e}\n\n{traceback.format_exc()}"
                 st.error(full_response)
                 st.session_state.agent_messages.append({"role": "assistant", "content": full_response})
                 st.session_state.processing_message = None

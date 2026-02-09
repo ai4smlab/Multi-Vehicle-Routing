@@ -8,6 +8,6 @@ numpy>=1.24.0
 SpeechRecognition>=3.10.0
 
 # AI Agent dependencies
-strands-agents
-strands-agents-tools
+langchain>=0.1.0
+langchain-ollama>=0.1.0
 ollama
