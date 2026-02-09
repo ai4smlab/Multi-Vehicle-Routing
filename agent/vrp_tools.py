@@ -1,4 +1,4 @@
-from strands.tools import tool
+from langchain.tools import tool
 import json
 import copy
 import streamlit as st
@@ -6,7 +6,6 @@ from datetime import datetime
 import sys
 import os
 
-# Add the parent directory to the path to import components
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'streamlit-app'))
 from components.api_client import get_api_client
 
@@ -133,6 +132,37 @@ def update_multiple_waypoints(updates: str) -> str:
 #     return json.dumps(summary, indent=2)
 
 
+# @tool
+# def get_route_summary(invocation_state: dict = None) -> str:
+#     """Gets current optimization results and route details.
+    
+#     Args:
+#         invocation_state: State passed from agent invocation
+    
+#     Returns: Current routes, metrics, and waypoint information
+#     """
+    
+#     # Get VRP data from invocation_state instead of st.session_state
+#     if not invocation_state or 'vrp_data' not in invocation_state:
+#         return "ERROR: No VRP session found. Please run optimization first."
+    
+#     vrp_data = invocation_state['vrp_data']
+#     current_result = vrp_data["current_result"]
+#     waypoints = vrp_data["waypoints"]
+    
+#     summary = {
+#         "session_info": {
+#             "total_waypoints": len(waypoints),
+#             "total_vehicles": len(vrp_data["fleet"]),
+#             "solver": vrp_data["solver_config"]["solver"]
+#         },
+#         "current_metrics": extract_metrics(current_result),
+#         "routes": current_result.get("routes", []) if "data" not in current_result else current_result["data"].get("routes", []),
+#         "waypoints": waypoints
+#     }
+    
+#     return json.dumps(summary, indent=2)
+
 
 @tool
 def get_route_summary() -> str:
@@ -141,12 +171,8 @@ def get_route_summary() -> str:
     Returns: Current routes, metrics, and waypoint information
     """
     
-    # Debug: Check what's in session state from tool perspective
-    import streamlit as st
-    session_keys = list(st.session_state.keys()) if hasattr(st, 'session_state') else []
-    
     if 'vrp_data' not in st.session_state:
-        return f"ERROR: No VRP session found. Session keys available: {session_keys}"
+        return "ERROR: No VRP session found. Please run optimization first."
     
     current_result = st.session_state.vrp_data["current_result"]
     waypoints = st.session_state.vrp_data["waypoints"]
@@ -163,7 +189,6 @@ def get_route_summary() -> str:
     }
     
     return json.dumps(summary, indent=2)
-
 
 
 @tool
@@ -244,13 +269,26 @@ def get_location_as_dict(location):
     else:
         return location
 
+# def get_customer_location(customer_id: str):
+#     """Get current location of a customer"""
+#     waypoints = st.session_state.vrp_data["waypoints"]
+#     for wp in waypoints:
+#         if wp.get("id") == customer_id:
+#             location = wp["location"]
+#             # Handle both dict and list formats
+#             if isinstance(location, dict):
+#                 return [location["lat"], location["lon"]]
+#             else:
+#                 return location
+#     return None
+
+
 def get_customer_location(customer_id: str):
     """Get current location of a customer"""
     waypoints = st.session_state.vrp_data["waypoints"]
     for wp in waypoints:
         if wp.get("id") == customer_id:
             location = wp["location"]
-            # Handle both dict and list formats
             if isinstance(location, dict):
                 return [location["lat"], location["lon"]]
             else:
