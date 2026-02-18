@@ -171,6 +171,15 @@ Be concise and friendly. Use natural language, not JSON."""
                     
                     narrative_response = llm.invoke([HumanMessage(content=interpretation_prompt)])
                     full_response = narrative_response.content
+
+                    # # Display tools used (minimal, clean)
+                    # tool_names = [tc['name'] for tc in response.tool_calls]
+                    # st.markdown(f"**🔧 Tools Used:** {', '.join(tool_names)}")
+
+                     # Add tools used to the response message
+                    tool_names = [tc['name'] for tc in response.tool_calls]
+                    full_response = f"**🔧 Tools Used:** {', '.join(tool_names)}\n\n{full_response}"
+                    
                 else:
                     # No tools called, use direct response
                     full_response = response.content if hasattr(response, 'content') else str(response)
