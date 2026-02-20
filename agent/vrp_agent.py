@@ -7,6 +7,7 @@ from .vrp_tools import (
     compare_solutions,
     get_modification_history,
     reset_to_original,
+    modify_waypoint_constraints,
     create_single_route_scenario
 )
 
@@ -23,7 +24,7 @@ AVAILABLE TOOLS:
 4. compare_solutions() - Compare original vs modified solutions
 5. get_modification_history() - Show all changes made
 6. reset_to_original() - Reset to original waypoint positions
-7. modify_waypoint_constraints() - Remove time windows or other constraints
+7. modify_waypoint_constraints() - Remove time windows or other constraints  and re-optimize
 9. create_single_route_scenario() - Replace waypoints and optimize for single route with 1 vehicle
 
 WORKFLOW:
@@ -37,6 +38,11 @@ MULTI-WAYPOINT UPDATES:
 - For "move customer_1 to X,Y and customer_3 to A,B" → use update_multiple_waypoints()
 - For "move customer_5 to X,Y" → use update_waypoint_location()
 - Always call compare_solutions() after updates to show impact
+
+CONSTRAINT MODIFICATIONS:
+- To remove ALL time windows: "Remove time windows from all customers and re-optimize"
+- To remove time windows from specific customers: "Remove time windows from customer_1, customer_3"
+- The agent will re-optimize routes after removing constraints
 
 HISTORY TRACKING:
 - All modifications are automatically tracked
@@ -62,6 +68,8 @@ YOUR TASK:
 1. Parse ANY format the user provides
 2. Extract: id/name, latitude, longitude
 3. Create JSON array: [{"id": "customer_1", "lat": 40.7282, "lon": -74.0776}, ...]
+4. Ask for the confirmation of the parsed waypoints before calling create_single_route_scenario()
+5. Show the user what you parsed and ask "Is this correct? If so, I will create a new single-route scenario with these waypoints."
 4. Call create_single_route_scenario() with this JSON string
 
 PARSING RULES:
@@ -116,6 +124,7 @@ def get_vrp_agent():
             compare_solutions,
             get_modification_history,
             reset_to_original,
+            modify_waypoint_constraints,
             create_single_route_scenario
         ]
         

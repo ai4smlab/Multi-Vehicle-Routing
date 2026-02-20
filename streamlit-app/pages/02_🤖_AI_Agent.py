@@ -32,7 +32,7 @@ if 'vrp_data' in st.session_state:
     for key, value in st.session_state.vrp_data.items():
         if key in ['waypoints', 'original_waypoints']:
             st.write(f"  {key}: {len(value)} items")
-            st.json(value[:2])  # Show first 2 waypoints
+            st.json(value[:3])  # Show first 2 waypoints
         elif key == 'fleet':
             st.write(f"  {key}: {len(value)} vehicles")
             st.json(value)
@@ -76,6 +76,27 @@ st.sidebar.info(f"📍 Waypoints: {len(vrp_data['waypoints'])}")
 st.sidebar.info(f"🚛 Vehicles: {len(vrp_data['fleet'])}")
 st.sidebar.info(f"⚙️ Solver: {vrp_data['solver_config']['solver']}")
 st.sidebar.info(f"🔄 Modifications: {len(vrp_data.get('modification_history', []))}")
+
+# ===== ADD THIS: Show current waypoints in expandable section =====
+with st.sidebar.expander("📍 Current Waypoints"):
+    for wp in vrp_data['waypoints']:
+        wp_type = wp.get('type', 'unknown').upper()
+        wp_id = wp.get('id')
+        time_window = wp.get('time_window')
+        
+        status = "✅" if time_window is None else "⏱️"
+        st.write(f"{status} **{wp_id}** ({wp_type})")
+        
+        if time_window:
+            start_hr = time_window.get('start', 0) // 3600
+            end_hr = time_window.get('end', 0) // 3600
+            st.caption(f"   Time Window: {start_hr}:00 - {end_hr}:00")
+        else:
+            st.caption(f"   Time Window: None (No constraint)")
+        
+        demand = wp.get('demand', [0])[0] if wp.get('demand') else 0
+        st.caption(f"   Demand: {demand} units")
+# ===== END NEW CODE =====
 
 # Show modification history in sidebar
 if vrp_data.get("modification_history"):
@@ -179,7 +200,7 @@ Be concise and friendly. Use natural language, not JSON."""
                      # Add tools used to the response message
                     tool_names = [tc['name'] for tc in response.tool_calls]
                     full_response = f"**🔧 Tools Used:** {', '.join(tool_names)}\n\n{full_response}"
-                    
+
                 else:
                     # No tools called, use direct response
                     full_response = response.content if hasattr(response, 'content') else str(response)

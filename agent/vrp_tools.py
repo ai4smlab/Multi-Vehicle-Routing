@@ -104,6 +104,66 @@ def update_multiple_waypoints(updates: str) -> str:
     return format_batch_update_response(old_result, new_result, changes)
 
 
+@tool
+def modify_waypoint_constraints(customer_ids: str = "all", remove_time_window: bool = False) -> str:
+    """Modifies waypoint constraints (like time windows) and re-optimizes.
+    
+    Args:
+        customer_ids: Comma-separated customer IDs, or "all" for all customers
+        remove_time_window: If True, removes time window constraints
+    
+    Returns: JSON with optimization result after constraint removal
+    """
+    
+    if 'vrp_data' not in st.session_state:
+        return "ERROR: No VRP session found. Please run optimization first."
+    
+    old_result = st.session_state.vrp_data["current_result"]
+    waypoints = st.session_state.vrp_data["waypoints"]
+    
+    # Determine which customers to modify
+    if customer_ids.lower() == "all":
+        target_customers = [wp["id"] for wp in waypoints]
+    else:
+        target_customers = [cid.strip() for cid in customer_ids.split(",")]
+    
+    # Apply modifications
+    changes = []
+    for wp in waypoints:
+        if wp["id"] in target_customers:
+            if remove_time_window:
+                old_tw = wp.get("time_window")
+                wp["time_window"] = None
+                changes.append({
+                    "customer_id": wp["id"],
+                    "removed_constraint": "time_window",
+                    "old_value": old_tw
+                })
+    
+    if not changes:
+        return "ERROR: No matching customers found or no changes applied."
+    
+    # Re-optimize without constraints
+    new_result = reoptimize_routes()
+    
+    if new_result.get('status') != 'success':
+        return f"ERROR: Re-optimization failed: {new_result.get('message', 'Unknown error')}"
+    
+    # Track modification
+    add_modification_record("constraint_removal", changes, old_result, new_result)
+    
+    improvement = calculate_improvement(old_result, new_result)
+    
+    response = {
+        "status": "success",
+        "message": f"Removed time window constraints for {len(changes)} customer(s) and re-optimized",
+        "changes": changes,
+        "improvement": improvement,
+        "new_metrics": extract_metrics(new_result)
+    }
+    
+    return json.dumps(response, indent=2)
+
 
 # @tool
 # def get_route_summary() -> str:
