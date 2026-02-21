@@ -554,35 +554,35 @@ def reoptimize_routes():
     return result
 
 
-def extract_metrics(result):
-    """Extract key metrics from solver result"""
-    return {
-        "total_distance": result.get("total_distance", 0),
-        "total_time": result.get("total_time", 0),
-        "total_cost": result.get("total_cost", 0),
-        "num_routes": len(result.get("routes", []))
-    } 
-
-
 # def extract_metrics(result):
 #     """Extract key metrics from solver result"""
-#     # Handle nested data structure
-#     if "data" in result:
-#         data = result["data"]
-#         routes = data.get("routes", [])
-#     else:
-#         routes = result.get("routes", [])
-    
-#     # Calculate metrics from routes
-#     total_distance = sum(route.get("total_distance", 0) for route in routes)
-#     total_time = sum(route.get("total_duration", 0) for route in routes)
-    
 #     return {
-#         "total_distance": total_distance,
-#         "total_time": total_time,
+#         "total_distance": result.get("total_distance", 0),
+#         "total_time": result.get("total_time", 0),
 #         "total_cost": result.get("total_cost", 0),
-#         "num_routes": len(routes)
-#     }
+#         "num_routes": len(result.get("routes", []))
+#     } 
+
+
+def extract_metrics(result):
+    """Extract key metrics from solver result"""
+    # Handle nested data structure
+    if "data" in result:
+        data = result["data"]
+        routes = data.get("routes", [])
+    else:
+        routes = result.get("routes", [])
+    
+    # Calculate metrics from routes
+    total_distance = sum(route.get("total_distance", 0) for route in routes)
+    total_time = sum(route.get("total_duration", 0) for route in routes)
+    
+    return {
+        "total_distance": total_distance,
+        "total_time": total_time,
+        "total_cost": result.get("total_cost", 0),
+        "num_routes": len(routes)
+    }
 
 
 def calculate_improvement(old_result, new_result):
