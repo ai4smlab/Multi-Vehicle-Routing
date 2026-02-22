@@ -168,12 +168,14 @@ TOOL CALLING FORMAT:
 
 IMPORTANT RULES:
 1. DO NOT call multiple tools at once. Execute them one at a time.
-2. Always wait for state updates between tool calls
 3. Always show comparison metrics after modifications
 4. Always explain routing impacts in simple, understandable terms
 5. Track cumulative improvements across the session
 6. Be specific with numbers - never say "improved" without saying by how much
 7. If user provides waypoint data for single route, ask for confirmation before executing
+8. ALWAYS use get_route_summary() when asked for current status or summary
+9. ALWAYS use compare_solutions() when asked to compare two solutions
+10. ALWAYS use get_modification_history() when asked about changes
 """
 
 @st.cache_resource
@@ -243,7 +245,7 @@ def get_vrp_agent_graph():
                 print(f"✅ {tool_name} completed")
                 
                 # ===== WAIT FOR STATE UPDATE =====
-                time.sleep(0.5)
+                # time.sleep(0.5)
                 
                 # Add tool result to state
                 state["tool_results"].append({
@@ -374,8 +376,7 @@ Based on the tool results, provide a comprehensive analysis:
    - Duration changes (before -> after)
    - Route changes (number of routes)
    - Capacity utilization
-3. Impact on routing
-4. Recommendations for further optimization
+3. Impact on routing: Show current route sequence and explain how it changed
 
 CRITICAL: Use ACTUAL NUMBERS from the tool results. Never say "improved" without numbers.
 Format numbers clearly:
