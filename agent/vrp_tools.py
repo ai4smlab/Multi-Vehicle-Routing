@@ -261,14 +261,42 @@ def compare_solutions() -> str:
     if 'vrp_data' not in st.session_state:
         return "ERROR: No VRP session found. Please run optimization first."
     
-    original_result = st.session_state.vrp_data["original_result"]
-    current_result = st.session_state.vrp_data["current_result"]
+    original_result = st.session_state.vrp_data.get("original_result", {})
+    current_result = st.session_state.vrp_data.get("current_result", {})
+    
+    # ===== DEBUG: Print raw results to console =====
+    print("\n🔍 DEBUG: compare_solutions()")
+    print(f"Original result keys: {original_result.keys() if original_result else 'None'}")
+    print(f"Current result keys: {current_result.keys() if current_result else 'None'}")
+    print(f"Original result status: {original_result.get('status')}")
+    print(f"Current result status: {current_result.get('status')}")
+    
+    if "routes" in original_result:
+        print(f"Original routes: {len(original_result.get('routes', []))}")
+        if original_result.get('routes'):
+            print(f"  First route: {original_result['routes'][0].keys()}")
+    
+    if "routes" in current_result:
+        print(f"Current routes: {len(current_result.get('routes', []))}")
+        if current_result.get('routes'):
+            print(f"  First route: {current_result['routes'][0].keys()}")
+    # ===== END DEBUG =====
+    
+    original_metrics = extract_metrics(original_result)
+    current_metrics = extract_metrics(current_result)
+    improvement = calculate_improvement(original_result, current_result)
+    
+    # ===== DEBUG: Print extracted metrics =====
+    print(f"\nExtracted original metrics: {original_metrics}")
+    print(f"Extracted current metrics: {current_metrics}")
+    print(f"Calculated improvement: {improvement}")
+    # ===== END DEBUG =====
     
     comparison = {
-        "original_metrics": extract_metrics(original_result),
-        "current_metrics": extract_metrics(current_result),
-        "improvement": calculate_improvement(original_result, current_result),
-        "total_modifications": len(st.session_state.vrp_data["modification_history"])
+        "original_metrics": original_metrics,
+        "current_metrics": current_metrics,
+        "improvement": improvement,
+        "total_modifications": len(st.session_state.vrp_data.get("modification_history", []))
     }
     
     return json.dumps(comparison, indent=2)
@@ -554,46 +582,76 @@ def reoptimize_routes():
     return result
 
 
-# def extract_metrics(result):
-#     """Extract key metrics from solver result"""
-#     return {
-#         "total_distance": result.get("total_distance", 0),
-#         "total_time": result.get("total_time", 0),
-#         "total_cost": result.get("total_cost", 0),
-#         "num_routes": len(result.get("routes", []))
-#     } 
-
-
 def extract_metrics(result):
-    """Extract key metrics from solver result"""
-    # Handle nested data structure
+    """Extract key metrics from solver result - handles multiple result formats"""
+    
+    if not result or result.get('status') != 'success':
+        return {
+            "total_distance": 0,
+            "total_time": 0,
+            "total_cost": 0,
+            "num_routes": 0
+        }
+    
+    # Handle nested "data" structure
     if "data" in result:
         data = result["data"]
         routes = data.get("routes", [])
     else:
         routes = result.get("routes", [])
     
+    # If no routes, return zeros
+    if not routes:
+        return {
+            "total_distance": 0,
+            "total_time": 0,
+            "total_cost": 0,
+            "num_routes": 0
+        }
+    
     # Calculate metrics from routes
     total_distance = sum(route.get("total_distance", 0) for route in routes)
     total_time = sum(route.get("total_duration", 0) for route in routes)
+    total_cost = result.get("total_cost", 0)
+    
+    # If total_distance is 0, check if we need to look for alternative fields
+    if total_distance == 0:
+        # Try alternative field names
+        total_distance = result.get("distance", 0) or result.get("total_distance", 0)
+    
+    if total_time == 0:
+        # Try alternative field names
+        total_time = result.get("duration", 0) or result.get("total_duration", 0)
     
     return {
-        "total_distance": total_distance,
-        "total_time": total_time,
-        "total_cost": result.get("total_cost", 0),
+        "total_distance": round(total_distance, 2),
+        "total_time": round(total_time, 2),
+        "total_cost": round(total_cost, 2),
         "num_routes": len(routes)
     }
 
 
 def calculate_improvement(old_result, new_result):
-    """Calculate improvement metrics"""
+    """Calculate improvement metrics between two results"""
+    
     old_metrics = extract_metrics(old_result)
     new_metrics = extract_metrics(new_result)
     
+    distance_change = old_metrics["total_distance"] - new_metrics["total_distance"]
+    time_change = old_metrics["total_time"] - new_metrics["total_time"]
+    cost_change = old_metrics["total_cost"] - new_metrics["total_cost"]
+    
+    # Calculate percentage improvements
+    distance_pct = round((distance_change / old_metrics["total_distance"] * 100), 2) if old_metrics["total_distance"] > 0 else 0
+    time_pct = round((time_change / old_metrics["total_time"] * 100), 2) if old_metrics["total_time"] > 0 else 0
+    
     return {
-        "distance_change": old_metrics["total_distance"] - new_metrics["total_distance"],
-        "time_change": old_metrics["total_time"] - new_metrics["total_time"],
-        "cost_change": old_metrics["total_cost"] - new_metrics["total_cost"]
+        "distance_change": round(distance_change, 2),
+        "distance_change_pct": distance_pct,
+        "time_change": round(time_change, 2),
+        "time_change_pct": time_pct,
+        "cost_change": round(cost_change, 2),
+        "routes_change": new_metrics["num_routes"] - old_metrics["num_routes"]
     }
 
 def calculate_cumulative_improvement(history):
