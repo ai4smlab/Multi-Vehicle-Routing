@@ -5,6 +5,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, List, Any
 import time
+import os
 
 from .vrp_tools import (
     update_waypoint_location,
@@ -17,8 +18,11 @@ from .vrp_tools import (
     create_single_route_scenario
 )
 
+# Default configuration
+DEFAULT_LLM_PROVIDER = "ollama"  # Options: "ollama", "claude"
 OLLAMA_HOST = "http://localhost:11434"
 OLLAMA_MODEL_ID = "qwen3:latest"
+CLAUDE_MODEL_ID = "claude-sonnet-4-20250514"  # Default Claude model
 
 # ===== DEFINE STATE =====
 class AgentState(TypedDict):
@@ -35,13 +39,42 @@ You are a Vehicle Routing Optimization Agent. You help users modify waypoints an
 
 AVAILABLE TOOLS:
 1. update_waypoint_location() - Update single customer coordinates
-2. update_multiple_waypoints() - Update multiple customers at once  
+2. update_multiple_waypoints() - Update multiple customers at once
 3. get_route_summary() - Show current routes and metrics
 4. compare_solutions() - Compare original vs modified solutions
 5. get_modification_history() - Show all changes made
 6. reset_to_original() - Reset to original waypoint positions
 7. modify_waypoint_constraints() - Remove time windows or other constraints and re-optimize
-8. create_single_route_scenario() - Replace waypoints and optimize for single route with 1 vehicle
+8. create_single_route_scenario() - Create single route with 1 vehicle (customers_data parameter is OPTIONAL - if not provided, uses existing waypoints from session)
+
+═══════════════════════════════════════════════════════════════════════════════
+CRITICAL: SINGLE ROUTE SCENARIO - SIMPLIFIED WORKFLOW
+═══════════════════════════════════════════════════════════════════════════════
+
+When user asks for a single route optimization (WITHOUT providing new waypoints):
+Example: "Create a single route", "Optimize for one vehicle", "Consolidate into one route"
+
+SIMPLE WORKFLOW:
+1. Call create_single_route_scenario() with NO parameters (or empty string)
+2. The tool will automatically use EXISTING waypoints from the session
+3. Show results: distance, duration, route sequence
+
+DO NOT call get_route_summary() first - the tool handles this internally!
+
+When user provides NEW waypoint data:
+Example: "Create single route with customer_1 at 40.71, -74.00 and customer_2 at 40.75, -73.98"
+
+WORKFLOW:
+1. Parse the user's waypoint data
+2. Build JSON array: [{"id": "customer_1", "lat": 40.71, "lon": -74.00}, ...]
+3. Call create_single_route_scenario(customers_data=json_string)
+4. Show results
+
+DECISION TREE:
+- "Create single route" (no waypoints) → Call create_single_route_scenario() with NO parameters
+- "Create single route with [waypoints]" → Parse and call create_single_route_scenario(customers_data=json)
+
+═══════════════════════════════════════════════════════════════════════════════
 
 WHEN USER ASKS FOR:
 - "Show routes" or "Summary" → Call get_route_summary()
@@ -50,6 +83,8 @@ WHEN USER ASKS FOR:
 - "Reset" → Call reset_to_original()
 - "Move customer X to ..." → Call update_waypoint_location() or update_multiple_waypoints()
 - "Remove time windows" → Call modify_waypoint_constraints()
+- "Create single route" (no waypoints) → Call create_single_route_scenario() with NO parameters
+- "Create single route with [waypoints]" → Parse waypoints, then call create_single_route_scenario(customers_data=json)
 
 CRITICAL GUARDRAIL: When user asks for ANY information about routes, metrics, or history:
 1. ALWAYS call the appropriate tool (get_route_summary, compare_solutions, get_modification_history)
@@ -84,7 +119,7 @@ CONSTRAINT MODIFICATIONS:
 - Explain the impact: "Removing time windows reduces delivery time constraints and may allow faster routes"
 
 MULTI-TOOL SEQUENCES (VERY IMPORTANT):
-- If user asks to "remove time windows AND compare": 
+- If user asks to "remove time windows AND compare":
   1. First: Call modify_waypoint_constraints()
   2. Then: Call compare_solutions()
   3. Then: Generate final response with actual numbers
@@ -92,6 +127,9 @@ MULTI-TOOL SEQUENCES (VERY IMPORTANT):
   1. First: Call update_multiple_waypoints()
   2. Then: Call get_modification_history()
   3. Then: Generate final response with cumulative impact
+- If user asks to "create single route" (no waypoints):
+  1. Call create_single_route_scenario() with NO parameters - it handles everything internally
+  2. Then: Generate final response with route details
 - DO NOT call multiple tools at once. Execute them one at a time.
 
 EXAMPLE RESPONSES FOR HISTORY:
@@ -99,8 +137,6 @@ EXAMPLE RESPONSES FOR HISTORY:
 - "Total improvements so far: 15.2km distance saved, 8 minutes faster, 1 fewer route needed"
 - "Cumulative impact from all 5 modifications: 42.8km saved, 25 minutes faster routing"
 
-PARSING USER INPUT FOR SINGLE ROUTE SCENARIO:
-When user provides waypoint data in ANY format, convert to JSON and call create_single_route_scenario().
 
 SUPPORTED INPUT FORMATS (user can use any of these):
 1. CSV-like: "customer_1 40.7282 -74.0776; customer_2 40.7589 -73.9851"
@@ -108,15 +144,6 @@ SUPPORTED INPUT FORMATS (user can use any of these):
 3. Short: "c1: 40.7282, -74.0776; c2: 40.7589, -73.9851"
 4. Labeled: "customer 1 latitude 40.7282 longitude -74.0776"
 5. List format: "40.7282, -74.0776 (customer 1); 40.7589, -73.9851 (customer 2)"
-
-SINGLE ROUTE SCENARIO WORKFLOW:
-1. Parse ANY format the user provides
-2. Extract: id/name, latitude, longitude
-3. Create JSON array: [{"id": "customer_1", "lat": 40.7282, "lon": -74.0776}, ...]
-4. Ask for confirmation of the parsed waypoints
-5. Show the user what you parsed: "Is this correct? I will create a new single-route scenario with these waypoints."
-6. Call create_single_route_scenario() with this JSON string
-7. Show results: total distance, duration, route sequence
 
 PARSING RULES:
 - Extract numbers as coordinates (first = latitude, second = longitude)
@@ -127,7 +154,7 @@ PARSING RULES:
 - Positive small numbers (< 90) with larger second number = latitude, longitude pattern
 
 EXAMPLE CONVERSIONS:
-- User: "Point 1 lat 40.7282, lon -74.0776" 
+- User: "Point 1 lat 40.7282, lon -74.0776"
   → JSON: [{"id": "customer_1", "lat": 40.7282, "lon": -74.0776}]
 
 - User: "c1: 40.7282, -74.0776; c2: 40.7589, -73.9851"
@@ -161,6 +188,7 @@ CRITICAL EXECUTION RULES:
 2. After a tool completes, the system will ask you what to do next
 3. If you need to call another tool, you will be asked in the next turn
 4. ONLY call compare_solutions() AFTER other tools complete and you are explicitly asked for comparison
+5. FOR SINGLE ROUTE: Call create_single_route_scenario() with NO parameters - it handles everything internally
 
 TOOL CALLING FORMAT:
 - Call exactly ONE tool per response
@@ -168,7 +196,8 @@ TOOL CALLING FORMAT:
 
 IMPORTANT RULES:
 1. DO NOT call multiple tools at once. Execute them one at a time.
-3. Always show comparison metrics after modifications
+2. Always show comparison metrics after modifications
+3. Always show routes in the form of waypoint sequences with arrow e.g., 0 → 4 → 3
 4. Always explain routing impacts in simple, understandable terms
 5. Track cumulative improvements across the session
 6. Be specific with numbers - never say "improved" without saying by how much
@@ -176,6 +205,7 @@ IMPORTANT RULES:
 8. ALWAYS use get_route_summary() when asked for current status or summary
 9. ALWAYS use compare_solutions() when asked to compare two solutions
 10. ALWAYS use get_modification_history() when asked about changes
+11. FOR SINGLE ROUTE: Call create_single_route_scenario() with NO parameters - it handles everything internally
 """
 
 @st.cache_resource

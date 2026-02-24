@@ -5,6 +5,7 @@ import streamlit as st
 from datetime import datetime
 import sys
 import os
+from typing import Union, Optional
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'streamlit-app'))
 from components.api_client import get_api_client
@@ -398,32 +399,75 @@ def update_customer_location(customer_id: str, lat: float, lon: float):
 
 
 @tool
-def create_single_route_scenario(customers_data: str) -> str:
-    """Creates a new VRP scenario optimized for a single route.
-    
+def create_single_route_scenario(customers_data: Union[str, list, None] = None) -> str:
+    """Creates a single-route scenario optimized for all customers.
+
+    If customers_data is NOT provided (None), uses EXISTING waypoints from the current session.
+    If customers_data IS provided, uses the new waypoints instead.
+
     Args:
-        customers_data: JSON string with customer waypoints
-        Format: '[{"id": "customer_1", "lat": 40.7128, "lon": -74.006}, ...]'
-    
+        customers_data: (Optional) List or JSON string with NEW customer waypoints.
+        Accepts a list: [{"id": "customer_1", "lat": 40.7128, "lon": -74.006}, ...]
+        Or a JSON string: '[{"id": "customer_1", "lat": 40.7128, "lon": -74.006}, ...]'
+        Each customer may also use nested location: {"id": "...", "location": {"lat": ..., "lon": ...}}
+        If None or empty, uses existing customers from session.
+
     Returns: JSON with new single-route optimization result
-    
+
     Configuration applied:
     - 1 vehicle with infinite capacity
     - Service duration: 300 seconds per customer
-    - No time windows
+    - No time windows (removed for optimization)
     - Depot remains from previous session
+
+    USE THIS TOOL when user asks for:
+    - "Create a single route"
+    - "Optimize for one vehicle"
+    - "Consolidate into one route"
+    - "Show me a single route solution"
     """
-    
+
     if 'vrp_data' not in st.session_state:
         return "ERROR: No VRP session found. Need existing session with depot."
-    
-    try:
-        customers_list = json.loads(customers_data)
-    except json.JSONDecodeError as e:
-        return f"ERROR: Invalid JSON format. {str(e)}"
-    
-    if not isinstance(customers_list, list) or len(customers_list) == 0:
-        return "ERROR: customers_data must be non-empty JSON array"
+
+    # Get existing waypoints from session
+    existing_waypoints = st.session_state.vrp_data.get("waypoints", [])
+
+    if not existing_waypoints:
+        return "ERROR: No waypoints found in session."
+
+    # Get depot
+    depot = next((wp for wp in existing_waypoints if wp.get("type") == "depot"), None)
+
+    if depot is None:
+        return "ERROR: No depot found in existing session"
+
+    # Normalize customers_data — accept list, JSON string, or None
+    if isinstance(customers_data, list):
+        raw_list = customers_data
+    elif isinstance(customers_data, str) and customers_data.strip():
+        try:
+            raw_list = json.loads(customers_data)
+        except json.JSONDecodeError as e:
+            return f"ERROR: Invalid JSON format. {str(e)}"
+    else:
+        raw_list = None
+
+    # Determine which customers to use
+    if raw_list is None:
+        # Use EXISTING customers from session
+        existing_customers = [wp for wp in existing_waypoints if wp.get("type") == "customer"]
+
+        if not existing_customers:
+            return "ERROR: No customers found in session."
+
+        customers_list = existing_customers
+        source = "existing_session"
+    else:
+        if not isinstance(raw_list, list) or len(raw_list) == 0:
+            return "ERROR: customers_data must be a non-empty list or JSON array"
+        customers_list = raw_list
+        source = "provided_data"
     
     # Get existing depot from session
     existing_waypoints = st.session_state.vrp_data.get("waypoints", [])
@@ -432,29 +476,48 @@ def create_single_route_scenario(customers_data: str) -> str:
     if depot is None:
         return "ERROR: No depot found in existing session"
     
-    # Build new waypoints: depot + customers
+    # Build new waypoints: depot + customers (with modified constraints)
     new_waypoints = [depot]  # Keep existing depot
-    
+
     for customer in customers_list:
-        if not isinstance(customer, dict):
-            return f"ERROR: Each customer must be a dict. Got {type(customer)}"
-        
-        if "id" not in customer or "lat" not in customer or "lon" not in customer:
-            return "ERROR: Each customer must have 'id', 'lat', 'lon'"
-        
-        customer_wp = {
-            "id": str(customer.get("id")),
-            "type": "customer",
-            "location": {
-                "lat": float(customer.get("lat")),
-                "lon": float(customer.get("lon"))
-            },
-            "demand": [1],  # Default demand = 1
-            "service_duration": 300,  # 5 minutes per customer
-            "time_window": None  # No time windows
-        }
+        if source == "existing_session":
+            # Copy existing customer but remove time windows
+            customer_wp = {
+                "id": customer.get("id"),
+                "type": "customer",
+                "location": customer.get("location"),
+                "demand": customer.get("demand", [1]),
+                "service_duration": 300,  # 5 minutes per customer
+                "time_window": None  # Remove time windows
+            }
+        else:
+            # Validate and use new customer data
+            if not isinstance(customer, dict):
+                return f"ERROR: Each customer must be a dict. Got {type(customer)}"
+
+            # Support both flat {"lat": ..., "lon": ...} and nested {"location": {"lat": ..., "lon": ...}}
+            lat = customer.get("lat") or customer.get("location", {}).get("lat")
+            lon = customer.get("lon") or customer.get("location", {}).get("lon")
+
+            if "id" not in customer or lat is None or lon is None:
+                return "ERROR: Each customer must have 'id' and coordinates ('lat'/'lon' or 'location.lat'/'location.lon')"
+
+            customer_wp = {
+                "id": str(customer.get("id")),
+                "type": "customer",
+                "location": {
+                    "lat": float(lat),
+                    "lon": float(lon)
+                },
+                "demand": customer.get("demand", [1]),
+                "service_duration": 300,  # 5 minutes per customer
+                "time_window": None  # No time windows
+            }
         new_waypoints.append(customer_wp)
-    
+
+    # Count customers
+    customer_count = len(customers_list)
+
     # Create single vehicle with infinite capacity
     single_vehicle = {
         "id": "vehicle_1",
@@ -464,59 +527,62 @@ def create_single_route_scenario(customers_data: str) -> str:
         "end": 0,  # End at depot index
         "time_window": None  # No time window
     }
-    
+
     # Store original state for comparison
     original_waypoints = st.session_state.vrp_data.get("waypoints", [])
     original_fleet = st.session_state.vrp_data.get("fleet", [])
     original_result = st.session_state.vrp_data.get("current_result", {})
-    
+
     # Update session state
     st.session_state.vrp_data["waypoints"] = new_waypoints
     st.session_state.vrp_data["fleet"] = [single_vehicle]
-    
+
     # Update solver config for single route
     st.session_state.vrp_data["solver_config"]["allow_drop"] = False
     st.session_state.vrp_data["solver_config"]["vehicle_fixed_cost"] = 0  # No penalty for vehicle
-    
+
     # Re-optimize with new configuration
     new_result = reoptimize_routes()
-    
+
     if new_result.get('status') != 'success':
         # Restore original if optimization failed
         st.session_state.vrp_data["waypoints"] = original_waypoints
         st.session_state.vrp_data["fleet"] = original_fleet
         return f"ERROR: Optimization failed: {new_result.get('message', 'Unknown error')}"
-    
+
     # Track this as a modification
     modification = {
         "action": "create_single_route_scenario",
-        "previous_customers": len([w for w in original_waypoints if w.get("type") == "customer"]),
-        "new_customers": len(customers_list),
-        "vehicles": 1,
+        "description": f"Re-configured session for single-route optimization with {customer_count} customers",
+        "source": source,
+        "previous_vehicles": len(original_fleet),
+        "new_vehicles": 1,
+        "customers_count": customer_count,
+        "time_windows_removed": customer_count,
         "vehicle_capacity": 10**9,
-        "service_duration_per_customer": 300,
-        "time_windows_applied": False
+        "service_duration_per_customer": 300
     }
-    
+
     if "modification_history" not in st.session_state.vrp_data:
         st.session_state.vrp_data["modification_history"] = []
-    
+
     st.session_state.vrp_data["modification_history"].append(modification)
-    
+
     # Extract metrics
-    routes = new_result.get("routes", [])
+    routes = new_result.get("routes", []) if "data" not in new_result else new_result.get("data", {}).get("routes", [])
     total_distance = sum(r.get("total_distance", 0) for r in routes)
     total_duration = sum(r.get("total_duration", 0) for r in routes)
-    
+
     response = {
         "status": "success",
-        "message": f"Created single-route scenario with {len(customers_list)} customers",
+        "message": f"Created single-route scenario using {customer_count} {'existing' if source == 'existing_session' else 'new'} customers",
         "configuration": {
             "vehicles": 1,
             "vehicle_capacity": "∞ (infinite)",
-            "customers": len(customers_list),
+            "customers": customer_count,
+            "customer_ids": [c.get("id") if isinstance(c, dict) else c["id"] for c in customers_list],
             "service_duration": "300 seconds per customer",
-            "time_windows": "None (no constraints)",
+            "time_windows": "Removed for optimization",
             "depot": depot.get("id")
         },
         "result": {
@@ -525,9 +591,14 @@ def create_single_route_scenario(customers_data: str) -> str:
             "total_duration_hours": round(total_duration / 3600, 2),
             "route_sequence": routes[0].get("waypoint_ids", []) if routes else [],
             "stops": len(routes[0].get("waypoint_ids", [])) - 1 if routes else 0
+        },
+        "comparison_with_original": {
+            "original_distance": extract_metrics(original_result).get("total_distance", 0),
+            "new_distance": round(total_distance, 2),
+            "distance_change": round(extract_metrics(original_result).get("total_distance", 0) - total_distance, 2)
         }
     }
-    
+
     return json.dumps(response, indent=2)
 
 
