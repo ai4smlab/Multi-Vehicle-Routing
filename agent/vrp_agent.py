@@ -6,6 +6,11 @@ from langgraph.graph import StateGraph, END
 from typing import TypedDict, List, Any
 import time
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', 'backend', '.env')
+load_dotenv(dotenv_path=dotenv_path)
 
 from .vrp_tools import (
     update_waypoint_location,
@@ -32,6 +37,7 @@ class AgentState(TypedDict):
     tools_executed: List[str]
     final_response: str
     completed: bool
+    llm_provider: str  # Track which LLM provider is being used
 
 # ===== COMPREHENSIVE SYSTEM PROMPT =====
 SYSTEM_PROMPT = """
@@ -209,15 +215,52 @@ IMPORTANT RULES:
 """
 
 @st.cache_resource
-def get_vrp_agent_graph():
-    """Create LangGraph workflow for sequential tool execution with comprehensive state management"""
+def get_vrp_agent_graph(llm_provider="ollama", llm_model=None):
+    """Create LangGraph workflow for sequential tool execution with comprehensive state management
     
-    llm = ChatOllama(
-        base_url=OLLAMA_HOST,
-        model=OLLAMA_MODEL_ID,
-        temperature=0.1
-    )
+    Args:
+        llm_provider: "ollama" or "claude"
+        llm_model: Model name (optional, uses default if not provided)
+    """
     
+    # Determine model to use
+    if llm_model is None:
+        llm_model = OLLAMA_MODEL_ID if llm_provider == "ollama" else CLAUDE_MODEL_ID
+    
+    # Initialize LLM based on provider
+    if llm_provider == "ollama":
+        llm = ChatOllama(
+            base_url=OLLAMA_HOST,
+            model=llm_model,
+            temperature=0.1
+        )
+        print(f"🤖 Using Ollama: {llm_model}")
+    elif llm_provider == "claude":
+        try:
+            from langchain_anthropic import ChatAnthropic
+            
+            # Check for API key
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not api_key:
+                st.error("❌ ANTHROPIC_API_KEY not found. Please set it in .env file or environment variables.")
+                return None
+            
+            llm = ChatAnthropic(
+                model=llm_model,
+                temperature=0.1,
+                api_key=api_key
+            )
+            print(f"🤖 Using Claude: {llm_model}")
+        except ImportError:
+            st.error("❌ langchain-anthropic not installed. Run: pip install langchain-anthropic")
+            return None
+        except Exception as e:
+            st.error(f"❌ Failed to initialize Claude: {e}")
+            return None
+    else:
+        st.error(f"❌ Unknown LLM provider: {llm_provider}")
+        return None
+
     tools = [
         update_waypoint_location,
         update_multiple_waypoints,
@@ -228,34 +271,41 @@ def get_vrp_agent_graph():
         modify_waypoint_constraints,
         create_single_route_scenario
     ]
-    
-    agent_llm = llm.bind_tools(tools)
+
+    # For Claude, we need to handle tools differently
+    # Claude requires the tools to be passed in a specific format
+    if llm_provider == "claude":
+        agent_llm = llm.bind_tools(tools, tool_choice="auto")
+    else:
+        agent_llm = llm.bind_tools(tools)
     
     # ===== DEFINE WORKFLOW NODES =====
     
     def process_tool_call(state: AgentState) -> AgentState:
         """Execute a single tool call sequentially"""
         messages = state["messages"]
-        
+
         # Get latest response from LLM
         last_message = messages[-1]
-        
+
         if not hasattr(last_message, 'tool_calls') or not last_message.tool_calls:
             return state
-        
+
         # Execute ONLY the FIRST tool (sequential execution - one at a time)
         tool_call = last_message.tool_calls[0]
-        
+
         # Extract tool_name and tool_args safely
         if isinstance(tool_call, dict):
             tool_name = tool_call.get('name', 'unknown')
             tool_args = tool_call.get('args', {})
+            tool_call_id = tool_call.get('id', tool_name)
         else:
             tool_name = tool_call.name if hasattr(tool_call, 'name') else 'unknown'
             tool_args = tool_call.args if hasattr(tool_call, 'args') else {}
-        
-        print(f"\n🔨 Executing tool: {tool_name}")
-        
+            tool_call_id = getattr(tool_call, 'id', tool_name)
+
+        print(f"\n🔨 Executing tool: {tool_name} (ID: {tool_call_id})")
+
         # Tool mapping
         tools_map = {
             'update_waypoint_location': update_waypoint_location,
@@ -267,16 +317,13 @@ def get_vrp_agent_graph():
             'modify_waypoint_constraints': modify_waypoint_constraints,
             'create_single_route_scenario': create_single_route_scenario,
         }
-        
+
         if tool_name in tools_map:
             try:
                 # Invoke tool with proper error handling
                 result = tools_map[tool_name].invoke(tool_args)
                 print(f"✅ {tool_name} completed")
-                
-                # ===== WAIT FOR STATE UPDATE =====
-                # time.sleep(0.5)
-                
+
                 # Add tool result to state
                 state["tool_results"].append({
                     'tool': tool_name,
@@ -284,16 +331,16 @@ def get_vrp_agent_graph():
                     'status': 'success'
                 })
                 state["tools_executed"].append(tool_name)
-                
-                # Add ToolMessage to conversation
+
+                # Add ToolMessage to conversation - required for LLM to understand tool result
                 state["messages"].append(
                     ToolMessage(
                         content=result,
-                        tool_call_id=tool_name,
+                        tool_call_id=tool_call_id,
                         name=tool_name
                     )
                 )
-                
+
             except Exception as e:
                 print(f"❌ {tool_name} failed: {e}")
                 import traceback
@@ -303,11 +350,12 @@ def get_vrp_agent_graph():
                     'error': str(e),
                     'status': 'failed'
                 })
+                
                 # Add error message so LLM knows tool failed
                 state["messages"].append(
                     ToolMessage(
                         content=f"Tool {tool_name} failed with error: {str(e)}",
-                        tool_call_id=tool_name,
+                        tool_call_id=tool_call_id,
                         name=tool_name
                     )
                 )
@@ -344,27 +392,31 @@ def get_vrp_agent_graph():
     def call_llm(state: AgentState) -> AgentState:
         """Call LLM with conversation history and current VRP data"""
         
+        # Store LLM provider and model in state for later use
+        state["llm_provider"] = state.get("llm_provider", "ollama")
+        state["llm_model"] = state.get("llm_model", None)
+
         # Build system message with current VRP data
         if 'vrp_data' in st.session_state:
             dynamic_prompt = build_dynamic_system_prompt(st.session_state.vrp_data)
             system_message = SystemMessage(content=dynamic_prompt)
         else:
             system_message = SystemMessage(content=SYSTEM_PROMPT)
-        
+
         # Prepare messages for LLM
         messages_for_llm = [system_message] + state["messages"]
-        
+
         # Call LLM
         response = agent_llm.invoke(messages_for_llm)
-        
+
         # Add response to state
         state["messages"].append(response)
-        
+
         return state
     
     def generate_response(state: AgentState) -> AgentState:
         """Generate final response with all tool results and analysis"""
-        
+
         if not state["tools_executed"]:
             # No tools were called - LLM answered directly
             last_message = state["messages"][-1]
@@ -372,10 +424,10 @@ def get_vrp_agent_graph():
         else:
             # Tools were executed - build response from tool results
             tool_results_summary = json.dumps(state["tool_results"], indent=2)
-            
+
             # Check if any tools failed
             failed_tools = [tr for tr in state["tool_results"] if tr['status'] == 'failed']
-            
+
             if failed_tools:
                 # If tools failed, show what happened
                 state["final_response"] = f"""
@@ -414,11 +466,21 @@ Format numbers clearly:
 - Time: Show in minutes or hours
 - Improvement: Show both absolute and percentage change
 """
+
+                # Use the appropriate LLM based on provider stored in state
+                llm_provider = state.get("llm_provider", "ollama")
                 
-                llm = ChatOllama(base_url=OLLAMA_HOST, model=OLLAMA_MODEL_ID, temperature=0.3)
+                if llm_provider == "claude":
+                    from langchain_anthropic import ChatAnthropic
+                    api_key = os.getenv("ANTHROPIC_API_KEY")
+                    llm_model = state.get("llm_model", CLAUDE_MODEL_ID)
+                    llm = ChatAnthropic(model=llm_model, temperature=0.3, api_key=api_key)
+                else:
+                    llm = ChatOllama(base_url=OLLAMA_HOST, model=state.get("llm_model", OLLAMA_MODEL_ID), temperature=0.3)
+                
                 response = llm.invoke([HumanMessage(content=interpretation_prompt)])
                 state["final_response"] = response.content
-        
+
         state["completed"] = True
         return state
     
@@ -521,25 +583,62 @@ MODIFICATION HISTORY ({len(modification_history)} changes):
     return dynamic_prompt
 
 
-def run_agent(user_message: str) -> dict:
-    """Run the agent with LangGraph workflow for sequential tool execution"""
+def run_agent(user_message: str, llm_provider=None, llm_model=None) -> dict:
+    """Run the agent with LangGraph workflow for sequential tool execution
     
-    agent_graph = get_vrp_agent_graph()
+    Args:
+        user_message: The user's input message
+        llm_provider: "ollama" or "claude" (uses session state if not provided)
+        llm_model: Model name (uses default if not provided)
     
-    # Initialize state
+    Returns:
+        dict with response, tools_used, and tool_results
+    """
+    
+    # Get provider from session state if not provided
+    if llm_provider is None:
+        llm_provider = st.session_state.get("llm_provider", DEFAULT_LLM_PROVIDER)
+    if llm_model is None:
+        llm_model = st.session_state.get("llm_model", None)
+    
+    # Clear cache when provider changes to force re-initialization
+    cache_key = f"llm_{llm_provider}_{llm_model or 'default'}"
+    if st.session_state.get("last_llm_cache_key") != cache_key:
+        get_vrp_agent_graph.clear()
+        st.session_state["last_llm_cache_key"] = cache_key
+    
+    agent_graph = get_vrp_agent_graph(llm_provider=llm_provider, llm_model=llm_model)
+    
+    if agent_graph is None:
+        return {
+            "response": "❌ Failed to initialize AI agent. Please check your LLM configuration.",
+            "tools_used": [],
+            "tool_results": []
+        }
+
+    # Initialize state with provider and model info
     initial_state = AgentState(
         messages=[HumanMessage(content=user_message)],
         tool_results=[],
         tools_executed=[],
         final_response="",
-        completed=False
+        completed=False,
+        llm_provider=llm_provider,
+        llm_model=llm_model
     )
-    
+
     # Run workflow
-    final_state = agent_graph.invoke(initial_state)
-    
-    return {
-        "response": final_state["final_response"],
-        "tools_used": final_state["tools_executed"],
-        "tool_results": final_state["tool_results"]
-    }
+    try:
+        final_state = agent_graph.invoke(initial_state)
+
+        return {
+            "response": final_state["final_response"],
+            "tools_used": final_state["tools_executed"],
+            "tool_results": final_state["tool_results"]
+        }
+    except Exception as e:
+        return {
+            "response": f"❌ Error during agent execution: {str(e)}",
+            "tools_used": [],
+            "tool_results": []
+        }

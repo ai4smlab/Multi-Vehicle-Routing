@@ -5,6 +5,13 @@ import sys
 import speech_recognition as sr
 from io import BytesIO
 import json
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', 'backend', '.env')
+load_dotenv(dotenv_path=dotenv_path)
+print(f"DEBUG: Loaded .env from {dotenv_path}")
+print(f"DEBUG: ANTHROPIC_API_KEY set: {bool(os.getenv('ANTHROPIC_API_KEY'))}")
 
 # Add the parent directory to the path to import agent
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -44,6 +51,76 @@ if 'vrp_data' in st.session_state:
 
 st.set_page_config(page_title="VRP AI Agent", page_icon="🤖", layout="wide")
 st.title("🤖 VRP AI Agent")
+
+# ===== LLM MODEL SELECTION =====
+st.sidebar.header("🤖 AI Model Configuration")
+
+# Initialize LLM settings in session state if not present
+if "llm_provider" not in st.session_state:
+    st.session_state.llm_provider = "ollama"
+if "llm_model" not in st.session_state:
+    st.session_state.llm_model = None
+
+# LLM Provider Selection
+llm_provider = st.sidebar.radio(
+    "Select LLM Provider:",
+    options=["ollama", "claude"],
+    index=0 if st.session_state.llm_provider == "ollama" else 1,
+    format_func=lambda x: x.upper(),
+    help="Choose between local Ollama or Claude API"
+)
+
+# Update session state
+if llm_provider != st.session_state.llm_provider:
+    st.session_state.llm_provider = llm_provider
+    st.session_state.llm_model = None  # Reset model when provider changes
+    st.rerun()
+
+# Model selection based on provider
+if llm_provider == "ollama":
+    ollama_models = ["qwen3:latest", "qwen2.5:7b-instruct", "qwen2.5:14b", "llama3.1:8b-instruct"]
+    selected_model = st.sidebar.selectbox(
+        "Ollama Model:",
+        options=ollama_models,
+        index=0,
+        help="Select which Ollama model to use"
+    )
+    st.session_state.llm_model = selected_model
+    
+    # Check Ollama connection
+    import requests
+    try:
+        requests.get("http://localhost:11434/api/tags", timeout=2)
+        st.sidebar.success("✅ Ollama is running")
+    except Exception as e:
+        st.sidebar.error("❌ Ollama not running on localhost:11434")
+        
+elif llm_provider == "claude":
+    claude_models = [
+        "claude-sonnet-4-20250514",
+        "claude-3-5-sonnet-20241022",
+        "claude-3-opus-20240229",
+        "claude-3-haiku-20240307"
+    ]
+    selected_model = st.sidebar.selectbox(
+        "Claude Model:",
+        options=claude_models,
+        index=0,
+        help="Select which Claude model to use"
+    )
+    st.session_state.llm_model = selected_model
+    
+    # Check Claude API key
+    if os.getenv("ANTHROPIC_API_KEY"):
+        st.sidebar.success("✅ Claude API key configured")
+    else:
+        st.sidebar.error("❌ ANTHROPIC_API_KEY not set")
+        st.sidebar.info("💡 Set it in .env file or environment variables")
+
+# Display current model info
+st.sidebar.divider()
+st.sidebar.write(f"**Active Model:** `{st.session_state.llm_provider}/{st.session_state.llm_model or 'default'}`")
+# ===== END LLM MODEL SELECTION =====
 
 # Check if VRP session exists
 if 'vrp_data' not in st.session_state:
@@ -107,17 +184,21 @@ if vrp_data.get("modification_history"):
                 elif record['improvement']['distance_change'] < 0:
                     st.error(f"↑ {abs(record['improvement']['distance_change']):.1f}km added")
 
-# Warning about requirements
-st.warning("Requires Ollama (qwen3) running on localhost:11434", icon="⚠️")
-
-# ===== NEW: Check Ollama connection =====
-import requests
-try:
-    requests.get("http://localhost:11434/api/tags", timeout=2)
-    st.success("✅ Ollama is running", icon="✅")
-except Exception as e:
-    st.error("❌ Ollama not running on localhost:11434", icon="❌")
-# ===== END OLLAMA CHECK =====
+# Dynamic status message based on selected LLM provider
+if st.session_state.llm_provider == "ollama":
+    import requests
+    try:
+        requests.get("http://localhost:11434/api/tags", timeout=2)
+        st.success("✅ Ollama is running on localhost:11434", icon="✅")
+    except Exception as e:
+        st.error("❌ Ollama not running on localhost:11434", icon="❌")
+        st.info("💡 Start Ollama with: `ollama serve`")
+elif st.session_state.llm_provider == "claude":
+    if os.getenv("ANTHROPIC_API_KEY"):
+        st.success("✅ Claude API key is configured", icon="✅")
+    else:
+        st.error("❌ ANTHROPIC_API_KEY not set", icon="❌")
+        st.info("💡 Get your API key from https://console.anthropic.com/ and set it in .env or environment variables")
 
 # Initialize chat session
 if "agent_session_id" not in st.session_state:
@@ -139,7 +220,12 @@ if st.session_state.processing_message is not None:
                 prompt = st.session_state.processing_message
                 
                 # Run agent with LangGraph (sequential tool execution)
-                result = run_agent(prompt)
+                # Pass the selected LLM provider and model from session state
+                result = run_agent(
+                    prompt,
+                    llm_provider=st.session_state.get("llm_provider"),
+                    llm_model=st.session_state.get("llm_model")
+                )
                 
                 # Display tools used
                 if result["tools_used"]:

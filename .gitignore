@@ -4,3 +4,4 @@ frontend/
 .venv/
 agent_implementation_plan.md
 IMPLEMENTATION_SUMMARY.md
+backend/.env
